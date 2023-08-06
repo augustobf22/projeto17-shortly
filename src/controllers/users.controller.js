@@ -4,7 +4,8 @@ export async function getMe(req, res) {
     const token = req.headers.authorization.replace('Bearer ', '');
 
     try {
-        const userId = await db.query(`SELECT userId FROM sessions WHERE token = $1`, [token]);
+        const userQuery = await db.query(`SELECT userId FROM sessions WHERE token = $1`, [token]);
+        const userId = userQuery.rows[0].userId;
         if(!userId) return res.status(401).send("Token inválido!"); 
         
         const userInfo = await db.query(`SELECT u.name, urls.id, urls.shortUrl, urls.originalUrl, urls.visit
