@@ -8,7 +8,7 @@ export async function postShorten(req, res) {
     try {
         const userQuery = await db.query(`SELECT "userId" FROM sessions WHERE token = $1`, [token]);
         const userId = userQuery.rows[0].userId;
-        if(!userId) return res.status(401).send("Token inválido!"); 
+        if(!userId || userId === undefined) return res.status(401).send("Token inválido!"); 
 
         const shortUrl = nanoid();
 
@@ -25,7 +25,7 @@ export async function getUrlsById(req, res) {
     const { id } = req.params;
 
     try {
-        const urlQuery = await db.query(`SELECT id, "shortUrl", "originalUrl" FROM urls WHERE id = $1`, [id]);
+        const urlQuery = await db.query(`SELECT id, "shortUrl", "originalUrl" AS url FROM urls WHERE id = $1`, [id]);
         if(urlQuery.rowCount === 0) return res.sendStatus(404);
 
         res.status(200).send(urlQuery.rows[0]);
