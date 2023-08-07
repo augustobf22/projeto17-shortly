@@ -4,38 +4,23 @@ export async function getMe(req, res) {
     const token = req.headers.authorization.replace('Bearer ', '');
 
     try {
-        const userQuery = await db.query(`SELECT userId FROM sessions WHERE token = $1`, [token]);
-        const userId = userQuery.rows[0].userId;
-        if(!userId) return res.status(401).send("Token inválido!"); 
+        const userQuery = await db.query(`SELECT "userId" FROM sessions WHERE token = $1`, [token]);
+        const userId = userQuery.rowCount !== 0 ? userQuery.rows[0].userId : undefined;
+        if(userId === undefined) return res.status(401).send("Token inválido!"); 
         
-        const userInfo = await db.query(`SELECT u.name, urls.id, urls.shortUrl, urls.originalUrl, urls.visit
-                        FROM users u
-                        WHERE id = $1 
-                        JOIN urls
-                        ON urls.userId = users.id`);
-
-        let totalVisits = 0;
-
-        let shortenedUrls= [];
-        for (let i=0; i<userInfo.rowCount; i++){
-            const u = userInfo.rows[i];
-            const tempShortened = {
-                id: u.urls.id,
-                shorUrl: u.urls.shortUrl,
-                url: u.urls.originalUrl,
-                visitCount: u.urls.visit
-            }; 
-            shortenedUrls.push(tempShortened);
-            totalVisits+=Number(u.urls.visit);
-        };
-
-        const userFormatted = {
-            id: userId,
-            name: userInfo.rows[0].u.name,
-            visitCount: totalVisits,
-            shortenedUrls: shortenedUrls
-        };
-        
+        const userInfo = await db.query(`SELECT
+                                            users.id, 
+                                            users.name, 
+                                            sum(urls.visits) AS "visitCount",
+                                            json_agg(json_build_object(
+                                                'id', urls.id, 
+                                                'shortUrl', urls."shortUrl", 
+                                                'url', urls."originalUrl", 
+                                                'visitCount', urls.visits)) as "shortenedUrls" 
+                                        FROM users
+                                        JOIN urls ON urls."userId" = users.id
+                                        GROUP BY users.id`);
+        const userFormatted = userInfo.rows[0];
         res.status(200).send(userFormatted);
     } catch (err) {
         res.status(500).send(err.message);
